@@ -21,6 +21,8 @@ class PHField;
 
 class Tracklet;
 class KalmanFastTracking;
+class KalmanFastTracking_NEW;
+class KalmanFastTracking_NEW_2;
 class KalmanFitter;
 class EventReducer;
 class SRawEvent;
@@ -113,7 +115,9 @@ private:
   TrackletVector* _tracklet_vector;
 
   TString _evt_reducer_opt;
-  KalmanFastTracking* _fastfinder;
+  //KalmanFastTracking* _fastfinder;
+  //KalmanFastTracking_NEW* _fastfinder;
+  KalmanFastTracking_NEW_2* _fastfinder;
   EventReducer*       _eventReducer;
 
   bool _enable_KF;

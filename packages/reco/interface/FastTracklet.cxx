@@ -504,12 +504,12 @@ Tracklet::Tracklet() : stationID(-1), nXHits(0), nUHits(0), nVHits(0), chisq(999
 }
 
 int Tracklet::isValid() const
-{
+{  
     if(stationID < 1 || stationID > nStations) return 0;
     if(fabs(tx) > TX_MAX || fabs(x0) > X0_MAX) return 0;
     if(fabs(ty) > TY_MAX || fabs(y0) > Y0_MAX) return 0;
     if(err_tx < 0 || err_ty < 0 || err_x0 < 0 || err_y0 < 0) return 0;
-
+  
     double prob = getProb();
     if(stationID != nStations && prob < PROB_LOOSE) return 0;
     
@@ -548,7 +548,6 @@ int Tracklet::isValid() const
             if(nRealHits[i][0] < 1 || nRealHits[i][1] < 1 || nRealHits[i][2] < 1) return 0;
             if(nRealHits[i][0] + nRealHits[i][1] + nRealHits[i][2] < 4) return 0;
         }
-
         //for global tracks only -- TODO: may need to set a new station-1 cut
         if(stationID == nStations)
         {
@@ -816,6 +815,8 @@ Tracklet Tracklet::operator+(const Tracklet& elem) const
     tracklet.x0 = (x0/err_x0/err_x0 + elem.x0/elem.err_x0/elem.err_x0)*tracklet.err_x0*tracklet.err_x0;
     tracklet.y0 = (y0/err_y0/err_y0 + elem.y0/elem.err_y0/elem.err_y0)*tracklet.err_y0*tracklet.err_y0;
 
+    //std::cout<<"ADDING tracklets.  What is the momentum: "<<tracklet.getMomentum()<<std::endl; //WPM
+    
     tracklet.invP = 1./tracklet.getMomentum();
     tracklet.err_invP = 0.25*tracklet.invP;
 
@@ -943,7 +944,6 @@ double Tracklet::calcChisq()
     {
         getXZInfoInSt1(tx_st1, x0_st1);
     }
-
     for(std::list<SignedHit>::const_iterator iter = hits.begin(); iter != hits.end(); ++iter)
     {
         if(iter->hit.index < 0) continue;
@@ -961,22 +961,284 @@ double Tracklet::calcChisq()
         //double p = iter->hit.pos + iter->sign*fabs(iter->hit.driftDistance);
         if(KMAG_ON && stationID == nStations && detectorID <= 12)
         {
-            //residual[index] = p - p_geomSvc->getInterception(detectorID, tx_st1, ty, x0_st1, y0);
-            residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx_st1, ty, x0_st1, y0);
+	  //residual[index] = p - p_geomSvc->getInterception(detectorID, tx_st1, ty, x0_st1, y0);
+	  residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx_st1, ty, x0_st1, y0);
         }
         else
         {
-            //residual[index] = p - p_geomSvc->getInterception(detectorID, tx, ty, x0, y0);
-            residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx, ty, x0, y0);
+	  //residual[index] = p - p_geomSvc->getInterception(detectorID, tx, ty, x0, y0);
+	  residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx, ty, x0, y0);
         }
 
         chisq += (residual[index]*residual[index]/sigma/sigma);
-        //std::cout << iter->hit.detectorID << "  " << iter->hit.elementID << "  " << iter->sign << "  " << iter->hit.pos << "  " << iter->hit.driftDistance << "  " << residual[index] << "  " <<  sigma << "  " << chisq << std::endl;
     }
 
-    //std::cout << chisq << std::endl;
     return chisq;
 }
+
+double Tracklet::calcChisq_noDrift()
+{
+    chisq = 0.;
+
+    double tx_st1, x0_st1;
+    if(stationID == nStations && KMAG_ON)
+    {
+        getXZInfoInSt1(tx_st1, x0_st1);
+    }
+    for(std::list<SignedHit>::const_iterator iter = hits.begin(); iter != hits.end(); ++iter)
+    {
+        if(iter->hit.index < 0) continue;
+
+        int detectorID = iter->hit.detectorID;
+        int index = detectorID - 1;
+
+        double sigma;
+        //if(iter->sign == 0 || COARSE_MODE) 
+	sigma = p_geomSvc->getPlaneSpacing(detectorID)/sqrt(12.);
+            //sigma = fabs(iter->hit.driftDistance)/sqrt(12.);
+        //else
+	//  sigma = p_geomSvc->getPlaneResolution(detectorID);
+
+        //double p = iter->hit.pos + iter->sign*fabs(iter->hit.driftDistance);
+        if(KMAG_ON && stationID == nStations && detectorID <= 12)
+        {
+	  //residual[index] = p - p_geomSvc->getInterception(detectorID, tx_st1, ty, x0_st1, y0);
+	  //residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx_st1, ty, x0_st1, y0);
+	  residual[index] = p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx_st1, ty, x0_st1, y0);
+        }
+        else
+        {
+	  //residual[index] = p - p_geomSvc->getInterception(detectorID, tx, ty, x0, y0);
+	  //residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx, ty, x0, y0);
+	  residual[index] = p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx, ty, x0, y0);
+        }
+
+        chisq += (residual[index]*residual[index]/sigma/sigma);
+    }
+
+    return chisq;
+}
+
+
+
+//getSlopesX finds the possible X-Z lines for the single-station tracklet, based on the two input hits, which must be associated with the vertical wires in the station
+void Tracklet::getSlopesX(Hit hit1, Hit hit2){
+  //z difference between the two hits.  An important component of X-Z slope
+  double zDist = std::abs(p_geomSvc->getPlanePosition(hit1.detectorID) - p_geomSvc->getPlanePosition(hit2.detectorID));
+  std::vector<Hit> twoHits; //sort the hits by z position
+  if(p_geomSvc->getPlanePosition(hit1.detectorID) <= p_geomSvc->getPlanePosition(hit2.detectorID)){
+    twoHits.push_back(hit1);
+    twoHits.push_back(hit2);
+  } else{
+    twoHits.push_back(hit2);
+    twoHits.push_back(hit1);
+  }
+  //Calculate the possible lines by brute force.  No y-information is provided by the vertical wires
+  linedef testline1;
+  testline1.slopeX = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline1.initialX = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline1.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  linedef testline2;
+  testline2.slopeX = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline2.initialX = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline2.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  linedef testline3;
+  testline3.slopeX = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline3.initialX = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline3.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  linedef testline4;
+  testline4.slopeX = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline4.initialX = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline4.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  
+  //Keep track of the four possible X-Z lines for the station's tracklet
+  possibleXLines.push_back(testline1);
+  possibleXLines.push_back(testline2);
+  possibleXLines.push_back(testline3);
+  possibleXLines.push_back(testline4);
+}
+
+//Find the possible U-Z lines for a single-station's tracklet.  Here a little more information is needed than in the X-Z case, which will eventually be used to extract Y information
+void Tracklet::getSlopesU(Hit hit1, Hit hit2){
+  double zDist = std::abs(p_geomSvc->getPlanePosition(hit1.detectorID) - p_geomSvc->getPlanePosition(hit2.detectorID));
+  std::vector<Hit> twoHits;
+  if(p_geomSvc->getPlanePosition(hit1.detectorID) <= p_geomSvc->getPlanePosition(hit2.detectorID)){
+    twoHits.push_back(hit1);
+    twoHits.push_back(hit2);
+  } else{
+    twoHits.push_back(hit2);
+    twoHits.push_back(hit1);
+  }
+
+  //We need to know the slopes of the two wires in X-Y space
+  double w1Slope = -p_geomSvc->getCostheta(twoHits.at(0).detectorID)/p_geomSvc->getSintheta(twoHits.at(0).detectorID);
+  double w2Slope = -p_geomSvc->getCostheta(twoHits.at(1).detectorID)/p_geomSvc->getSintheta(twoHits.at(1).detectorID);
+
+  //std::cout<<"in GETSLOPESU.  w1 ID is: "<<twoHits.at(0).detectorID<<", which has slope "<<w1Slope<<".  w2 ID is: "<<twoHits.at(1).detectorID<<", which has slope "<<w2Slope<<std::endl; //WPM_Jan24
+  
+  //Brute force calculation of U-Z lines, various information about wire positioning in X-Y space, and finding hit position in (X, Y, Z)
+  linedef testline1;
+  testline1.slopeU = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline1.initialU = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline1.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  //std::cout<<"quick check here.  detID is "<<twoHits.at(0).detectorID<<" and p_geomSvc->getPlanePosition(twoHits.at(0).detectorID) = "<<p_geomSvc->getPlanePosition(twoHits.at(0).detectorID)<<std::endl; //WPM
+  testline1.wire1Slope = w1Slope;
+  testline1.wire2Slope = w2Slope;
+  testline1.wireHit1Pos = (twoHits.at(0).pos + twoHits.at(0).driftDistance); //position in U-plane
+  testline1.wireHit2Pos = (twoHits.at(1).pos + twoHits.at(1).driftDistance); //position in U-plane
+  //U-layers are a rotated axis system relative to the X-Y coordinates.  We know the slope of the wires in the X-Y plane, and we know the U1 coordinate of the hit (U1 being the "x" coordinate in the rotated plane).  However, we don't know the U2 component of the hit.  What we do here is find the X-Y line that the hit falls on.  This is cast in simple y = m * x + b terms, where we know that the m is the same as the wire slope, and we get b by using (U1, 0) as an point on the line.  We have to rotate (U1, 0) into the X-Y plane to get the X-Y line 
+  testline1.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline1.wireHit1Pos; //This is the X-value of the hit in the first wire layer
+  testline1.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline1.wireHit2Pos; //X-value of hit in second layer
+  testline1.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline1.wireHit1Pos; //This is the Y-value of (U1, 0) = (wireHit1Pos, 0) point
+  testline1.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline1.wireHit2Pos; //This is the Y-value of (U1, 0) = (wireHit2Pos, 0) point
+  testline1.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID); //Z position of wire (no rotation needed)
+  testline1.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID); //Z position
+  testline1.wireIntercept1 = testline1.wireHit1PosY - testline1.wire1Slope * testline1.wireHit1PosX; //Extract the Y-intercept of the line that defines where the first U-plane hit occured
+  testline1.wireIntercept2 = testline1.wireHit2PosY - testline1.wire2Slope * testline1.wireHit2PosX; //Extract the Y-intercept of the line that defines where the second U-plane hit occured
+  linedef testline2;
+  testline2.slopeU = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline2.initialU = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline2.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline2.wire1Slope = w1Slope;
+  testline2.wire2Slope = w2Slope;
+  testline2.wireHit1Pos = (twoHits.at(0).pos - twoHits.at(0).driftDistance);
+  testline2.wireHit2Pos = (twoHits.at(1).pos + twoHits.at(1).driftDistance);
+  testline2.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline2.wireHit1Pos;
+  testline2.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline2.wireHit2Pos;
+  testline2.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline2.wireHit1Pos;
+  testline2.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline2.wireHit2Pos;
+  testline2.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline2.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline2.wireIntercept1 = testline2.wireHit1PosY - testline2.wire1Slope * testline2.wireHit1PosX;
+  testline2.wireIntercept2 = testline2.wireHit2PosY - testline2.wire2Slope * testline2.wireHit2PosX;
+  linedef testline3;
+  testline3.slopeU = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline3.initialU = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline3.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline3.wire1Slope = w1Slope;
+  testline3.wire2Slope = w2Slope;
+  testline3.wireHit1Pos = (twoHits.at(0).pos + twoHits.at(0).driftDistance);
+  testline3.wireHit2Pos = (twoHits.at(1).pos - twoHits.at(1).driftDistance);
+  testline3.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline3.wireHit1Pos;
+  testline3.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline3.wireHit2Pos;
+  testline3.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline3.wireHit1Pos;
+  testline3.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline3.wireHit2Pos;
+  testline3.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline3.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline3.wireIntercept1 = testline3.wireHit1PosY - testline3.wire1Slope * testline3.wireHit1PosX;
+  testline3.wireIntercept2 = testline3.wireHit2PosY - testline3.wire2Slope * testline3.wireHit2PosX;
+  linedef testline4;
+  testline4.slopeU = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline4.initialU = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline4.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline4.wire1Slope = w1Slope;
+  testline4.wire2Slope = w2Slope;
+  testline4.wireHit1Pos = (twoHits.at(0).pos - twoHits.at(0).driftDistance);
+  testline4.wireHit2Pos = (twoHits.at(1).pos - twoHits.at(1).driftDistance);
+  testline4.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline4.wireHit1Pos;
+  testline4.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline4.wireHit2Pos;
+  testline4.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline4.wireHit1Pos;
+  testline4.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline4.wireHit2Pos;
+  testline4.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline4.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline4.wireIntercept1 = testline4.wireHit1PosY - testline4.wire1Slope * testline4.wireHit1PosX;
+  testline4.wireIntercept2 = testline4.wireHit2PosY - testline4.wire2Slope * testline4.wireHit2PosX;
+  
+  //Keep track of the four possible U-Z lines and the corresponding possible lines for the hit in the X-Y plane
+  possibleULines.push_back(testline1);
+  possibleULines.push_back(testline2);
+  possibleULines.push_back(testline3);
+  possibleULines.push_back(testline4);
+}
+
+//getSlopesV is essentially a copy of getSlopesU, but it assigns the possible V lines
+void Tracklet::getSlopesV(Hit hit1, Hit hit2){
+  double zDist = std::abs(p_geomSvc->getPlanePosition(hit1.detectorID) - p_geomSvc->getPlanePosition(hit2.detectorID));
+  std::vector<Hit> twoHits;
+  if(p_geomSvc->getPlanePosition(hit1.detectorID) <= p_geomSvc->getPlanePosition(hit2.detectorID)){
+    twoHits.push_back(hit1);
+    twoHits.push_back(hit2);
+  } else{
+    twoHits.push_back(hit2);
+    twoHits.push_back(hit1);
+  }
+
+  double w1Slope = -p_geomSvc->getCostheta(twoHits.at(0).detectorID)/p_geomSvc->getSintheta(twoHits.at(0).detectorID);
+  double w2Slope = -p_geomSvc->getCostheta(twoHits.at(1).detectorID)/p_geomSvc->getSintheta(twoHits.at(1).detectorID);
+
+  //std::cout<<"in GETSLOPESV.  w1 ID is: "<<twoHits.at(0).detectorID<<", which has slope "<<w1Slope<<".  w2 ID is: "<<twoHits.at(1).detectorID<<", which has slope "<<w2Slope<<std::endl; //WPM_Jan24
+  
+  linedef testline1;
+  testline1.slopeV = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline1.initialV = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline1.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline1.wire1Slope = w1Slope;
+  testline1.wire2Slope = w2Slope;
+  testline1.wireHit1Pos = (twoHits.at(0).pos + twoHits.at(0).driftDistance);
+  testline1.wireHit2Pos = (twoHits.at(1).pos + twoHits.at(1).driftDistance);
+  testline1.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline1.wireHit1Pos;
+  testline1.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline1.wireHit2Pos;
+  testline1.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline1.wireHit1Pos;
+  testline1.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline1.wireHit2Pos;
+  testline1.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline1.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline1.wireIntercept1 = testline1.wireHit1PosY - testline1.wire1Slope * testline1.wireHit1PosX;
+  testline1.wireIntercept2 = testline1.wireHit2PosY - testline1.wire2Slope * testline1.wireHit2PosX;
+  linedef testline2;
+  testline2.slopeV = ( (twoHits.at(1).pos + twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline2.initialV = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline2.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline2.wire1Slope = w1Slope;
+  testline2.wire2Slope = w2Slope;
+  testline2.wireHit1Pos = (twoHits.at(0).pos - twoHits.at(0).driftDistance);
+  testline2.wireHit2Pos = (twoHits.at(1).pos + twoHits.at(1).driftDistance);
+  testline2.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline2.wireHit1Pos;
+  testline2.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline2.wireHit2Pos;
+  testline2.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline2.wireHit1Pos;
+  testline2.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline2.wireHit2Pos;
+  testline2.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline2.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline2.wireIntercept1 = testline2.wireHit1PosY - testline2.wire1Slope * testline2.wireHit1PosX;
+  testline2.wireIntercept2 = testline2.wireHit2PosY - testline2.wire2Slope * testline2.wireHit2PosX;
+  linedef testline3;
+  testline3.slopeV = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos + twoHits.at(0).driftDistance) )/zDist;
+  testline3.initialV = twoHits.at(0).pos + twoHits.at(0).driftDistance;
+  testline3.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline3.wire1Slope = w1Slope;
+  testline3.wire2Slope = w2Slope;
+  testline3.wireHit1Pos = (twoHits.at(0).pos + twoHits.at(0).driftDistance);
+  testline3.wireHit2Pos = (twoHits.at(1).pos - twoHits.at(1).driftDistance);
+  testline3.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline3.wireHit1Pos;
+  testline3.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline3.wireHit2Pos;
+  testline3.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline3.wireHit1Pos;
+  testline3.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline3.wireHit2Pos;
+  testline3.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline3.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline3.wireIntercept1 = testline3.wireHit1PosY - testline3.wire1Slope * testline3.wireHit1PosX;
+  testline3.wireIntercept2 = testline3.wireHit2PosY - testline3.wire2Slope * testline3.wireHit2PosX;
+  linedef testline4;
+  testline4.slopeV = ( (twoHits.at(1).pos - twoHits.at(1).driftDistance) - (twoHits.at(0).pos - twoHits.at(0).driftDistance) )/zDist;
+  testline4.initialV = twoHits.at(0).pos - twoHits.at(0).driftDistance;
+  testline4.initialZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline4.wire1Slope = w1Slope;
+  testline4.wire2Slope = w2Slope;
+  testline4.wireHit1Pos = (twoHits.at(0).pos - twoHits.at(0).driftDistance);
+  testline4.wireHit2Pos = (twoHits.at(1).pos - twoHits.at(1).driftDistance);
+  testline4.wireHit1PosX = p_geomSvc->getCostheta(twoHits.at(0).detectorID)*testline4.wireHit1Pos;
+  testline4.wireHit2PosX = p_geomSvc->getCostheta(twoHits.at(1).detectorID)*testline4.wireHit2Pos;
+  testline4.wireHit1PosY = p_geomSvc->getSintheta(twoHits.at(0).detectorID)*testline4.wireHit1Pos;
+  testline4.wireHit2PosY = p_geomSvc->getSintheta(twoHits.at(1).detectorID)*testline4.wireHit2Pos;
+  testline4.wireHit1PosZ = p_geomSvc->getPlanePosition(twoHits.at(0).detectorID);
+  testline4.wireHit2PosZ = p_geomSvc->getPlanePosition(twoHits.at(1).detectorID);
+  testline4.wireIntercept1 = testline4.wireHit1PosY - testline4.wire1Slope * testline4.wireHit1PosX;
+  testline4.wireIntercept2 = testline4.wireHit2PosY - testline4.wire2Slope * testline4.wireHit2PosX;
+  
+  possibleVLines.push_back(testline1);
+  possibleVLines.push_back(testline2);
+  possibleVLines.push_back(testline3);
+  possibleVLines.push_back(testline4);
+}
+//Eventually, getSlopesU and getSlopesV should probably be combined into one function, and the extraction of the possible line information can probably be simplified into single loop
 
 SignedHit Tracklet::getSignedHit(int index)
 {
@@ -1115,6 +1377,19 @@ void Tracklet::print(std::ostream& os)
     os << "KMAG projection: X =  " << getExpPositionX(Z_KMAG_BEND) << " +/- " << getExpPosErrorX(Z_KMAG_BEND) << endl;
     os << "KMAG projection: Y =  " << getExpPositionY(Z_KMAG_BEND) << " +/- " << getExpPosErrorY(Z_KMAG_BEND) << endl;
     os << "KMAGSTR =  " << KMAGSTR << endl;
+    os << "and for good measure, let's print out the possible slope info" << endl;
+    os << "possible X lines" << endl;
+    for(unsigned int sl = 0; sl<possibleXLines.size(); sl++){
+      possibleXLines.at(sl).print();
+    }
+    os << "possible U lines" << endl;
+    for(unsigned int sl = 0; sl<possibleULines.size(); sl++){
+      possibleULines.at(sl).print();
+    }
+    os << "possible V lines" << endl;
+    for(unsigned int sl = 0; sl<possibleVLines.size(); sl++){
+      possibleVLines.at(sl).print();
+    }
 }
 
 TrackletVector::TrackletVector(): trackletVec()

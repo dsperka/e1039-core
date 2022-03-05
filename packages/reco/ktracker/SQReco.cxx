@@ -1,6 +1,8 @@
 #include "SQReco.h"
 
 #include "KalmanFastTracking.h"
+#include "KalmanFastTracking_NEW.h"
+#include "KalmanFastTracking_NEW_2.h"
 #include "EventReducer.h"
 #include "UtilSRawEvent.h"
 
@@ -39,6 +41,8 @@
 #include <fstream>
 #include <exception>
 #include <boost/lexical_cast.hpp>
+
+//#define _DEBUG_ON
 
 #ifdef _DEBUG_ON
 #  define LogDebug(exp) std::cout << "DEBUG: " << __FUNCTION__ <<": "<< __LINE__ << ": " << exp << std::endl
@@ -112,7 +116,9 @@ int SQReco::InitRun(PHCompositeNode* topNode)
   if(ret != Fun4AllReturnCodes::EVENT_OK) return ret;
 
   //Init track finding
-  _fastfinder = new KalmanFastTracking(_phfield, _t_geo_manager, false);
+  //_fastfinder = new KalmanFastTracking(_phfield, _t_geo_manager, false);
+  //_fastfinder = new KalmanFastTracking_NEW(_phfield, _t_geo_manager, false);
+  _fastfinder = new KalmanFastTracking_NEW_2(_phfield, _t_geo_manager, false);
 
   _fastfinder->Verbosity(Verbosity());
 
@@ -346,8 +352,9 @@ int SQReco::process_event(PHCompositeNode* topNode)
     _recEvent->setRawEvent(_rawEvent);
     _recEvent->setRecStatus(finderstatus);
   }
-  if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) _fastfinder->printTimers();
-
+  //if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) _fastfinder->printTimers(); //WPM
+  _fastfinder->printTimers(); //WPM
+  
   int nTracklets = 0;
   int nFittedTracks = 0;
   std::list<Tracklet>& rec_tracklets = _fastfinder->getFinalTracklets();
@@ -396,8 +403,11 @@ int SQReco::process_event(PHCompositeNode* topNode)
     {
       if(_fitter_type == SQReco::LEGACY){
         fitOK = fitSt3TrackletCand(*iter, _kfitter);
+	//std::cout<<"it was legacy"<<std::endl;
       } else{
         fitOK = fitSt3TrackletCand(*iter, _gfitter);
+	//std::cout<<"it wasn't legacy"<<std::endl;
+
       }
     }
 
@@ -426,10 +436,10 @@ int SQReco::process_event(PHCompositeNode* topNode)
         }
 
         if(is_eval_dst_enabled()){
-          if(Verbosity() > Fun4AllBase::VERBOSITY_A_LOT)
-	        iter->print();
-          _tracklet_vector->push_back(&(*iter));
-        }
+	  //iter->print();
+	  _tracklet_vector->push_back(&(*iter));
+	}
+
       }
     }
   }

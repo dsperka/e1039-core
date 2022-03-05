@@ -1,5 +1,5 @@
 /*
-KalmanFastTracking.h
+KalmanFastTracking_NEW.h
 
 Fast tracking utility of Kalman filter track, used to improve the tracking speed and also for online monitoring
 
@@ -7,8 +7,8 @@ Author: Kun Liu, liuk@fnal.gov
 Created: 05-24-2013
 */
 
-#ifndef _KALMANFASTTRACKING_H
-#define _KALMANFASTTRACKING_H
+#ifndef _KALMANFASTTRACKING_NEW_H
+#define _KALMANFASTTRACKING_NEW_H
 
 #include <GlobalConsts.h>
 #include <geom_svc/GeomSvc.h>
@@ -33,11 +33,11 @@ class TGeoManager;
 class PHField;
 class PHTimer;
 
-class KalmanFastTracking
+class KalmanFastTracking_NEW
 {
 public:
-    explicit KalmanFastTracking(const PHField* field, const TGeoManager *geom, bool flag = true);
-    ~KalmanFastTracking();
+    explicit KalmanFastTracking_NEW(const PHField* field, const TGeoManager *geom, bool flag = true);
+    ~KalmanFastTracking_NEW();
 
     //set/get verbosity
     void Verbosity(const int a) {verbosity = a;}
@@ -57,7 +57,11 @@ public:
     void buildTrackletsInStationSlim(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
   void buildTrackletsInStationSlimU(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
     void buildTrackletsInStationSlimV(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
-  bool buildTrackletsInStation1(int stationID, int listID, double expXZSlope, double* pos_exp = nullptr, double* window = nullptr);
+  
+  bool buildTrackletsInStation1(int stationID, int listID, double expXZSlope, double expYSlope, double y0, double* pos_exp = nullptr, double* window = nullptr);
+  bool buildTrackletsInStation1_NEW(int stationID, int listID, double expXZSlope, double expYSlope, double y0, double* pos_exp = nullptr, double* window = nullptr);
+  bool buildTrackletsInStation1_UFirst(int stationID, int listID, double expXZSlope, double expYSlope, double y0, double* pos_exp = nullptr, double* window = nullptr);
+  
   void buildTrackletsInStation1X(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
   void buildTrackletsInStationWithUV(int stationID, int listID, Tracklet& tracklet23, double* pos_exp = nullptr, double* window = nullptr);
 
@@ -86,9 +90,15 @@ public:
     bool muonID_hodoAid(Tracklet& tracklet);
 
     bool compareTracklets(Tracklet& tracklet1, Tracklet& tracklet2);
+
   bool compareTrackletsSlim(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
+  bool compareTrackletsSlim_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
+  
   bool compareTrackletsSlimU(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
+  bool compareTrackletsSlimU_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
+  
   bool compareTrackletsSlimV(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
+  bool compareTrackletsSlimV_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
 
     bool compareTrackletsSerious(Tracklet& tracklet1, Tracklet& tracklet2);
   
@@ -97,6 +107,8 @@ public:
   bool compareTrackletsSlimU_v2(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
   bool compareTrackletsSlimV_v2(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
 
+  double YSlopes(Tracklet& tracklet1, Tracklet& tracklet2);
+  
   bool checkTwoTracklets(Tracklet& tracklet1, Tracklet& tracklet2);
   bool checkSingleTracklet(Tracklet& tracklet1);
   

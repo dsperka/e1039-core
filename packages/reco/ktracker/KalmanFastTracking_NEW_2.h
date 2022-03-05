@@ -1,5 +1,5 @@
 /*
-KalmanFastTracking.h
+KalmanFastTracking_NEW.h
 
 Fast tracking utility of Kalman filter track, used to improve the tracking speed and also for online monitoring
 
@@ -7,8 +7,8 @@ Author: Kun Liu, liuk@fnal.gov
 Created: 05-24-2013
 */
 
-#ifndef _KALMANFASTTRACKING_H
-#define _KALMANFASTTRACKING_H
+#ifndef _KALMANFASTTRACKING_NEW_2_H
+#define _KALMANFASTTRACKING_NEW_2_H
 
 #include <GlobalConsts.h>
 #include <geom_svc/GeomSvc.h>
@@ -33,11 +33,11 @@ class TGeoManager;
 class PHField;
 class PHTimer;
 
-class KalmanFastTracking
+class KalmanFastTracking_NEW_2
 {
 public:
-    explicit KalmanFastTracking(const PHField* field, const TGeoManager *geom, bool flag = true);
-    ~KalmanFastTracking();
+    explicit KalmanFastTracking_NEW_2(const PHField* field, const TGeoManager *geom, bool flag = true);
+    ~KalmanFastTracking_NEW_2();
 
     //set/get verbosity
     void Verbosity(const int a) {verbosity = a;}
@@ -57,17 +57,15 @@ public:
     void buildTrackletsInStationSlim(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
   void buildTrackletsInStationSlimU(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
     void buildTrackletsInStationSlimV(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
-  bool buildTrackletsInStation1(int stationID, int listID, double expXZSlope, double* pos_exp = nullptr, double* window = nullptr);
-  void buildTrackletsInStation1X(int stationID, int listID, double* pos_exp = nullptr, double* window = nullptr);
-  void buildTrackletsInStationWithUV(int stationID, int listID, Tracklet& tracklet23, double* pos_exp = nullptr, double* window = nullptr);
-
+  
+  bool buildTrackletsInStation1_NEW(int stationID, int listID, double expXZSlope, double expYSlope, double y0, bool tight, double* pos_exp = nullptr, double* window = nullptr);
+  
     //Build back partial tracks using tracklets in station 2 & 3
     void buildBackPartialTracks();
-  void buildBackPartialTracksSlim();
-  void buildBackPartialTracksSlim_v2();
-    void buildBackPartialTracksSlimX(int pass);
-    void buildBackPartialTracksSlimU(int pass);
-  void buildBackPartialTracksSlimV(int pass);
+  void buildBackPartialTracksSlim_v3(int cut);
+  void buildBackPartialTracksSlimX(int pass, double slopeComparison, double windowSize);
+  void buildBackPartialTracksSlimU(int pass, double slopeComparison, double windowSize);
+  void buildBackPartialTracksSlimV(int pass, double slopeComparison, double windowSize);
 
     //Build global tracks by connecting station 23 tracklets and station 1 tracklets
     void buildGlobalTracks();
@@ -86,19 +84,15 @@ public:
     bool muonID_hodoAid(Tracklet& tracklet);
 
     bool compareTracklets(Tracklet& tracklet1, Tracklet& tracklet2);
-  bool compareTrackletsSlim(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
-  bool compareTrackletsSlimU(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
-  bool compareTrackletsSlimV(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
 
-    bool compareTrackletsSerious(Tracklet& tracklet1, Tracklet& tracklet2);
+  bool compareTrackletsSlim(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
+  bool compareTrackletsSlim_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
   
-      bool compareTracklets_v2(Tracklet& tracklet1, Tracklet& tracklet2);
-  bool compareTrackletsSlim_v2(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
-  bool compareTrackletsSlimU_v2(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
-  bool compareTrackletsSlimV_v2(Tracklet& tracklet1, Tracklet& tracklet2, int pass);
-
-  bool checkTwoTracklets(Tracklet& tracklet1, Tracklet& tracklet2);
-  bool checkSingleTracklet(Tracklet& tracklet1);
+  bool compareTrackletsSlimU(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
+  bool compareTrackletsSlimU_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
+  
+  bool compareTrackletsSlimV(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
+  bool compareTrackletsSlimV_3hits(Tracklet& tracklet1, Tracklet& tracklet2, int pass, double slopeComparison, double windowSize);
   
     void buildPropSegments();
 
@@ -153,11 +147,64 @@ private:
 
     //Tracklets in one event, id = 0, 1, 2 for station 0/1, 2, 3+/-, id = 3 for station 2&3 combined, id = 4 for global tracks
     //Likewise for the next part
-    std::list<Tracklet> trackletsInSt[5];
-    std::list<Tracklet> trackletsInStSlimX[5];
-  std::list<Tracklet> trackletsInStSlimU[5];
-  std::list<Tracklet> trackletsInStSlimV[5];
+  //std::list<Tracklet> trackletsInSt[5];
+  //std::list<Tracklet> trackletsInStSlimX[5];
+  //std::list<Tracklet> trackletsInStSlimU[5];
+  //std::list<Tracklet> trackletsInStSlimV[5];
 
+  std::list<Tracklet> trackletsInSt[5];
+  std::list<Tracklet> trackletsInStSlimX[5][200];
+  std::list<Tracklet> trackletsInStSlimU[5][200];
+  std::list<Tracklet> trackletsInStSlimV[5][200];
+
+  long int num23XCombos;
+  long int num23UCombos;
+  long int num23VCombos;
+
+  int getNum23Combos(){
+    num23XCombos = 0;
+    num23UCombos = 0;
+    num23VCombos = 0;
+    for(unsigned int b = 0; b < 200; b++){
+      num23XCombos += trackletsInStSlimX[3][b].size();
+      num23UCombos += trackletsInStSlimU[3][b].size();
+      num23VCombos += trackletsInStSlimV[3][b].size();
+    }
+  }
+
+  bool isSlimMiddle(){
+    int nX = 0;
+    int nU = 0;
+    int nV = 0;
+    for(unsigned int b = 85; b < 115; b++){
+      //std::cout<<"bs that we test: "<<b<<std::endl;
+      nX += trackletsInStSlimX[3][b].size();
+      nU += trackletsInStSlimU[3][b].size();
+      nV += trackletsInStSlimV[3][b].size();
+    }
+    std::cout<<"nX = "<<nX<<", nU = "<<nU<<", nV = "<<nV<<", nX*nU*nV = "<<nX*nU*nV<<std::endl;
+    if(nX*nU*nV < 1000000){
+      return true;
+    } else{
+      return false;
+    }
+  }
+
+  int num1XCombos;
+  int num1UCombos;
+  int num1VCombos;
+
+  int getNum1Combos(){
+    num1XCombos = 0;
+    num1UCombos = 0;
+    num1VCombos = 0;
+    for(unsigned int b = 0; b < 200; b++){
+      num1XCombos += trackletsInStSlimX[0][b].size();
+      num1UCombos += trackletsInStSlimU[0][b].size();
+      num1VCombos += trackletsInStSlimV[0][b].size();
+    }
+  }
+  
     //Final SRecTrack list
     std::list<SRecTrack> stracks;
 
@@ -174,6 +221,7 @@ private:
     std::vector<int> detectorIDs_maskX[4];
     std::vector<int> detectorIDs_maskY[4];
     std::list<int>   hitIDs_mask[4];              //hits in T/B, L/R are combined
+    std::list<int>   hitIDs_maskX[4];
     std::vector<int> detectorIDs_muidHodoAid[2];  //Aux-hodoscope masking for muon ID
 
     //register difference hodo masking stations for different chamber detectors
@@ -242,6 +290,18 @@ private:
 
     //Timer
     std::map<std::string, PHTimer*> _timers;
+
+  double m_slopeComparison = 0.15;
+  double m_windowSize = 20.;
+
+  double m_slopeComparisonMedium = 0.07;
+  double m_windowSizeMedium = 11.;
+  
+  double m_slopeComparisonTight = 0.04;
+  double m_windowSizeTight = 7.;
+
+  double m_slopeComparisonSt1 = 0.30;
+  
 };
 
 #endif

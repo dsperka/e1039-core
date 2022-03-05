@@ -176,6 +176,7 @@ public:
     double Eval(const double* par);
     double Eval4(const double* par);
     double calcChisq();
+    double calcChisq_noDrift();
 
     //Add dummy hits
     void addDummyHits();
@@ -226,7 +227,14 @@ public:
 
     //List of signed hits
     std::list<SignedHit> hits;
-
+  SignedHit getHit(int _i){
+    std::list<SignedHit>::iterator it = hits.begin();
+    for(int i=0; i<_i; i++){
+      ++it;
+    }
+    return *it;
+  }
+  
     //Corresponding prop. tube segments
     PropSegment seg_x;
     PropSegment seg_y;
@@ -237,6 +245,71 @@ public:
     double x0;
     double y0;
     double invP;
+
+    //This is an admittedly messy way of keeping track of various bits of needed information to describe the possible particle trajectories in a single-station tracklet
+    struct linedef {
+      double slopeX;
+      double slopeY;
+      double initialX;
+      double initialY;
+      double initialZ;
+      double slopeU;
+      double initialU;
+      double slopeV;
+      double initialV;
+
+      double wireHit1Pos;
+      double wireHit2Pos;
+      double wireHit1PosX;
+      double wireHit2PosX;
+      double wireHit1PosY;
+      double wireHit2PosY;
+      double wireHit1PosZ;
+      double wireHit2PosZ;
+      double wire1Slope;
+      double wire2Slope;
+      double wireIntercept1;
+      double wireIntercept2;
+      
+      void print(){
+	std::cout<<"slopeX: "<<slopeX<<" slopeY: "<<slopeY<<" initialX: "<<initialX<<" initialY: "<<initialY<<" initialZ: "<<initialZ<<" slopeU: "<<slopeU<<" initialU: "<<initialU<<" slopeV: "<<slopeV<<" initialV: "<<initialV<<std::endl;
+      }
+
+    } ;
+
+  double st2X;
+  double st3X;
+  double st2Xsl;
+  double st3Xsl;
+  double st2U;
+  double st3U;
+  double st3V;
+  double st2V;
+  double st2Z;
+  double st3Z;
+  double st2Y;
+  double st3Y;
+  double st2Usl;
+  double st2Vsl;
+  double st3Usl;
+  double st3Vsl;
+  double st2UZ;
+  double st2VZ;
+
+  linedef acceptedXLine2;
+  linedef acceptedULine2;
+  linedef acceptedVLine2;
+  linedef acceptedXLine3;
+  linedef acceptedULine3;
+  linedef acceptedVLine3;
+  
+    std::vector<linedef> possibleXLines;
+    std::vector<linedef> possibleULines;
+    std::vector<linedef> possibleVLines;
+  
+    void getSlopesX(Hit hit1, Hit hit2);
+    void getSlopesU(Hit hit1, Hit hit2);
+    void getSlopesV(Hit hit1, Hit hit2);
 
     double err_tx;
     double err_ty;
