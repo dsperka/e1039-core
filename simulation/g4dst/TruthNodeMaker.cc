@@ -103,16 +103,18 @@ int TruthNodeMaker::process_event(PHCompositeNode* topNode)
       //HepMC::GenVertex* vtx = evt->signal_process_vertex(); // Return 0 as of 2019-11-19.
       // process_type: 4 means you will have 4 particles in the primary process: 0 + 1 -> 2 + 3
       // process type: 3 means you will have 3 particles in the primary process: 1 -> 2 + 3
+      // process type: 5 means you will have 3 output particles X -> 1 + 2 + 3
       HepMC::GenEvent::particle_const_iterator it = evt->particles_begin();
       if(m_process_type==4) it++; // Skip the 1st beam particle.
       for (int iii = 0; iii < m_process_type; iii++) {
+	if(m_process_type==5 && iii>=3) continue;
         const HepMC::GenParticle* par = *it;
         const HepMC::FourVector * mom = &par->momentum();
         TLorentzVector lvec;
         lvec.SetPxPyPzE(mom->px(), mom->py(), mom->pz(), mom->e());
         m_mcevt->set_particle_id(iii, par->pdg_id());
         m_mcevt->set_particle_momentum(iii, lvec);
-	// cout << "set particle id " << par->pdg_id() << " and momentum " << lvec.E() << std::endl;
+	cout << "set particle id " << par->pdg_id() << " and momentum " << lvec.E() << std::endl;
 	it++;
       }
     }
