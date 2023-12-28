@@ -563,7 +563,7 @@ int Fun4AllServer::process_event()
       }
       else
       {
-	cout << "could not find timer for " << timer_name << endl;
+	cout << "could not find timer for " << timer_name.str() << endl;
       }
       RetCodes[icnt] = (*iter).first->process_event((*iter).second);
       if (timer_found)
