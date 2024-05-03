@@ -34,6 +34,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <memory>
+#include <cmath>
 
 //#include <boost/tokenizer.hpp>
 //#include <boost/foreach.hpp>
